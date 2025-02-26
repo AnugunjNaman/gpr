@@ -39,14 +39,12 @@ class DETR(nn.Module):
         self.num_queries = num_queries
         self.num_classes = num_classes
 
-        # Backbone: ResNet50
-        # backbone = resnet50(pretrained=True)
-        backbone = models.resnet50(pretrained=False)
+        backbone = models.resnet50(weights=None)
         if pretrained_weights_path:
-            state_dict = torch.load(pretrained_weights_path)
+            state_dict = torch.load(pretrained_weights_path, weights_only=True)
             backbone.load_state_dict(state_dict)
         else:
-            backbone = models.resnet50(pretrained=True)
+            backbone = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
 
         backbone_layers = list(backbone.children())[:-2]  # Remove avgpool and fc
         self.backbone = nn.Sequential(*backbone_layers)

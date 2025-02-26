@@ -18,7 +18,7 @@ def main():
     num_classes = 4
     num_queries = 4
     batch_size = 4
-    epochs = 500
+    epochs = 1
     lr = 1e-4
     weight_decay = 1e-3
 
@@ -28,7 +28,6 @@ def main():
     model = DETR(
         num_classes=num_classes,
         num_queries=num_queries,
-        pretrained_weights_path="resnet50-0676ba61.pth",
     )
     model.to(device)
 
@@ -43,13 +42,13 @@ def main():
         "data/train", "data/annotations/train", transform=transform
     )
     train_loader = DataLoader(
-        train_dataset, batch_size=4, shuffle=True, collate_fn=collate_fn
+        train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn
     )
     val_dataset = ObjectDetectionDataset(
         "data/validate", "data/annotations/validate", transform=transform
     )
     val_loader = DataLoader(
-        train_dataset, batch_size=4, shuffle=True, collate_fn=collate_fn
+        val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn
     )
 
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
