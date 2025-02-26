@@ -199,30 +199,57 @@ def train_one_epoch(model, train_loader, optimizer, criterion, device):
     return avg_loss
 
 
-def validate(model, val_loader, criterion, device):
-    """Validates the model and returns the validation loss."""
+def validate(model, val_loader, criterion, device, num_classes):
+    """Validates the model and returns the validation loss and aggregated metrics."""
     model.eval()
     criterion.eval()
     val_loss = 0.0
+
+    # Initialize accumulators for metrics
+    max_f1_per_class = {c: 0.0 for c in range(num_classes)}
+    total_accuracy_per_class = {c: 0.0 for c in range(num_classes)}
+    batch_count = 0
 
     with torch.no_grad():
         for batch in val_loader:
             pixel_values = batch[0].to(device)
             targets = [{k: v.to(device) for k, v in t.items()} for t in batch[1]]
             outputs = model(pixel_values)
+
             pred_logits = outputs["pred_logits"]
             pred_boxes = outputs["pred_boxes"]
 
-            metrics = compute_metrics(pred_logits, pred_boxes, targets, 4)
-            print(metrics)
+            # Compute metrics for current batch
+            metrics = compute_metrics(pred_logits, pred_boxes, targets, num_classes)
+
+            # Aggregate max F1-score per class (keep the max seen across all batches)
+            for c in range(num_classes):
+                max_f1_per_class[c] = max(max_f1_per_class[c], metrics["max_f1_per_class"][c])
+
+                # Sum accuracy per class for averaging later
+                total_accuracy_per_class[c] += metrics["accuracy_per_class"][c]
+
+            batch_count += 1
+
+            # Compute validation loss
             loss_dict = criterion(outputs, targets)
             losses = sum(loss_dict.values())
             val_loss += losses.item()
 
+    # Compute the average accuracy per class
+    avg_accuracy_per_class = {c: total_accuracy_per_class[c] / batch_count for c in range(num_classes)}
+
+    # Aggregate metrics dictionary
+    aggregated_metrics = {
+        "max_f1_per_class": max_f1_per_class,
+        "avg_accuracy_per_class": avg_accuracy_per_class
+    }
+
     avg_val_loss = val_loss / len(val_loader)
     print(f"Validation Loss: {avg_val_loss:.4f}")
-    return avg_val_loss
+    print(f"Aggregated Metrics: {aggregated_metrics}")
 
+    return avg_val_loss, aggregated_metrics
 
 def save_checkpoint(model, epoch, best_model, best_val_loss):
     """Saves the model checkpoint."""
@@ -266,7 +293,7 @@ def main():
 
         # Validation every 2 epochs or on first epoch
         if (epoch + 1) % 2 == 0 or epoch == 0:
-            val_loss = validate(model, val_loader, criterion, device)
+            val_loss, val_metrics = validate(model, val_loader, criterion, device)
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
