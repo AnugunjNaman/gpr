@@ -14,10 +14,7 @@ def initialize_feature_extractor():
     """Initializes the feature extractor for DETR."""
     return DetrImageProcessor.from_pretrained(
         'facebook/detr-resnet-50',
-        size = {
-            "shortest_edge": 640, 
-            "longest_edge": 640
-        }
+        do_rescale=False
     )
 
 
@@ -85,13 +82,15 @@ def main():
         for batch in progress_bar:
             pixel_values = batch['pixel_values'].to(device)
             targets = [{k: v.to(device) for k, v in t.items()} for t in batch['labels']]
-
+            
             # Replace 'class_labels' with 'labels'
             for target in targets:
                 target['labels'] = target.pop('class_labels')
 
             optimizer.zero_grad()
             outputs = model(pixel_values)
+            print(pixel_values, targets, outputs)
+            exit()
 
             # Debugging: Check for NaNs
             if torch.isnan(outputs['pred_logits']).any() or torch.isnan(outputs['pred_boxes']).any():
